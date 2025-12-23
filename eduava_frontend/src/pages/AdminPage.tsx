@@ -34,7 +34,7 @@ const AdminPage = () => {
   useEffect(() => {
     const fetchSales = async () => {
       try {
-        const res = await fetch("http://localhost:5000/admin/sales", {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/sales`, {
           headers: {
             "x-admin-uid": user.uid, // 🔑 REQUIRED BY BACKEND
           },

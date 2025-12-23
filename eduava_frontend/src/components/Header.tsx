@@ -63,7 +63,7 @@ const Header = () => {
                 Hi, {user.displayName?.split(" ")[0]}
               </span>
               <Button
-                variant="outline"
+                variant="destructive"
                 size="sm"
                 onClick={logout}
                 className="flex items-center gap-2"

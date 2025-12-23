@@ -35,7 +35,7 @@ export const startPayment = async ({
     // 🔴 STEP 2: Create order (backend)
     console.log("➡️ Calling backend /create-order");
 
-    const orderRes = await fetch("http://localhost:5000/create-order", {
+    const orderRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/create-order`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount }),
@@ -68,7 +68,7 @@ export const startPayment = async ({
           console.log("➡️ Verifying payment with backend");
 
           const verifyRes = await fetch(
-            "http://localhost:5000/verify-payment",
+            `${import.meta.env.VITE_API_BASE_URL}/verify-payment`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

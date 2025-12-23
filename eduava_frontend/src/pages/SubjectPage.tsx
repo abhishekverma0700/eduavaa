@@ -44,7 +44,7 @@ const SubjectPage = () => {
       try {
         setLoadingUnlocks(true);
         const res = await fetch(
-          `http://localhost:5000/user-unlocks/${user.uid}`
+          `${import.meta.env.VITE_API_BASE_URL}/user-unlocks/${user.uid}`
         );
         const data = await res.json();
 
