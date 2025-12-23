@@ -1,43 +1,27 @@
-import Database from "better-sqlite3";
+// db.js
+import pkg from "pg";
+const { Pool } = pkg;
 
-const db = new Database("eduava.db");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 5
+});
 
-// Better safety
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+// 🔴 IMPORTANT: force test connection on startup
+(async () => {
+  try {
+    const client = await pool.connect();
+    console.log("✅ PostgreSQL connected (Supabase)");
+    client.release();
+  } catch (err) {
+    console.error("❌ PostgreSQL connection failed:", err.message);
+    process.exit(1); // backend hi band kar do agar DB nahi mila
+  }
+})();
 
-/* ---------------- USERS TABLE ---------------- */
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    email TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`).run();
-
-/* ---------------- UNLOCKS TABLE ---------------- */
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS unlocks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,
-    note_path TEXT NOT NULL,
-    payment_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, note_path),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )
-`).run();
-
-/* ---------------- INDEXES (performance) ---------------- */
-db.prepare(`
-  CREATE INDEX IF NOT EXISTS idx_unlocks_user
-  ON unlocks(user_id)
-`).run();
-
-db.prepare(`
-  CREATE INDEX IF NOT EXISTS idx_unlocks_note
-  ON unlocks(note_path)
-`).run();
-
-export default db;
+export default pool;

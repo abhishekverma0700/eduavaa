@@ -3,7 +3,7 @@ import cors from "cors";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import db from "./db.js";
+import pool from "./db.js";
 
 dotenv.config();
 
@@ -13,32 +13,27 @@ app.use(express.json());
 
 console.log("✅ Backend file loaded");
 
-/* -------------------- ADMIN UID (LOCK) -------------------- */
+/* ---------------- ADMIN UID ---------------- */
 const ADMIN_UIDS = [
-  "ywgsU3BOAnONQSCg05rk0dL4Ajv2" // 👈 TERA UID (FINAL)
+  "ywgsU3BOAnONQSCg05rk0dL4Ajv2"
 ];
 
-/* -------------------- RAZORPAY -------------------- */
+/* ---------------- RAZORPAY ---------------- */
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-/* -------------------- HEALTH CHECK -------------------- */
+/* ---------------- HEALTH ---------------- */
 app.get("/ping", (req, res) => {
   res.json({ status: "ok", time: new Date() });
 });
 
-/* -------------------- CREATE ORDER -------------------- */
+/* ---------------- CREATE ORDER ---------------- */
 app.post("/create-order", async (req, res) => {
   try {
     const { amount } = req.body;
-
-    if (!amount) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Amount missing" });
-    }
+    if (!amount) return res.status(400).json({ success: false });
 
     const order = await razorpay.orders.create({
       amount: Math.round(amount * 100),
@@ -48,13 +43,13 @@ app.post("/create-order", async (req, res) => {
 
     res.json(order);
   } catch (err) {
-    console.error("Create order error:", err);
+    console.error(err);
     res.status(500).json({ success: false });
   }
 });
 
-/* -------------------- VERIFY + UNLOCK -------------------- */
-app.post("/verify-payment", (req, res) => {
+/* ---------------- VERIFY + UNLOCK ---------------- */
+app.post("/verify-payment", async (req, res) => {
   try {
     const {
       razorpay_payment_id,
@@ -65,18 +60,6 @@ app.post("/verify-payment", (req, res) => {
       userName,
       userEmail,
     } = req.body;
-
-    if (
-      !razorpay_payment_id ||
-      !razorpay_order_id ||
-      !razorpay_signature ||
-      !userId ||
-      !notePath
-    ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid payload" });
-    }
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
@@ -89,17 +72,21 @@ app.post("/verify-payment", (req, res) => {
       return res.status(400).json({ success: false });
     }
 
-    /* ---------- SAVE USER ---------- */
-    db.prepare(`
-      INSERT OR IGNORE INTO users (id, name, email)
-      VALUES (?, ?, ?)
-    `).run(userId, userName || "Student", userEmail || "");
+    /* SAVE USER */
+    await pool.query(
+      `INSERT INTO users (id, name, email)
+       VALUES ($1,$2,$3)
+       ON CONFLICT (id) DO NOTHING`,
+      [userId, userName || "Student", userEmail || ""]
+    );
 
-    /* ---------- SAVE UNLOCK ---------- */
-    db.prepare(`
-      INSERT OR IGNORE INTO unlocks (user_id, note_path, payment_id)
-      VALUES (?, ?, ?)
-    `).run(userId, notePath, razorpay_payment_id);
+    /* SAVE UNLOCK */
+    await pool.query(
+      `INSERT INTO unlocks (user_id, note_path, payment_id)
+       VALUES ($1,$2,$3)
+       ON CONFLICT (user_id, note_path) DO NOTHING`,
+      [userId, notePath, razorpay_payment_id]
+    );
 
     res.json({ success: true });
   } catch (err) {
@@ -108,26 +95,26 @@ app.post("/verify-payment", (req, res) => {
   }
 });
 
-/* -------------------- USER UNLOCKS -------------------- */
-app.get("/user-unlocks/:userId", (req, res) => {
-  const rows = db
-    .prepare(`SELECT note_path FROM unlocks WHERE user_id = ?`)
-    .all(req.params.userId);
+/* ---------------- USER UNLOCKS ---------------- */
+app.get("/user-unlocks/:userId", async (req, res) => {
+  const result = await pool.query(
+    "SELECT note_path FROM unlocks WHERE user_id = $1",
+    [req.params.userId]
+  );
 
   res.json({
-    unlockedNotes: rows.map(r => r.note_path),
+    unlockedNotes: result.rows.map(r => r.note_path),
   });
 });
 
-/* -------------------- ADMIN : SALES (UID LOCKED) -------------------- */
-app.get("/admin/sales", (req, res) => {
+/* ---------------- ADMIN SALES ---------------- */
+app.get("/admin/sales", async (req, res) => {
   const adminUid = req.headers["x-admin-uid"];
-
   if (!ADMIN_UIDS.includes(adminUid)) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
-  const rows = db.prepare(`
+  const result = await pool.query(`
     SELECT 
       u.name,
       u.email,
@@ -137,13 +124,13 @@ app.get("/admin/sales", (req, res) => {
     FROM unlocks un
     JOIN users u ON u.id = un.user_id
     ORDER BY un.created_at DESC
-  `).all();
+  `);
 
-  res.json({ sales: rows });
+  res.json({ sales: result.rows });
 });
 
-/* -------------------- START SERVER -------------------- */
-const PORT = 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Backend running on http://localhost:${PORT}`);
+/* ---------------- START SERVER ---------------- */
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Backend running on ${PORT}`);
 });
