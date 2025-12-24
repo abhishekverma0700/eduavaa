@@ -84,9 +84,19 @@
     "cs/data-structures/unit-1/notes.pdf",
     "cs/algorithms/quantum/quantum.pdf"
   ],
+  "unlocked": [
+    "cs/data-structures/unit-1/notes.pdf",
+    "cs/algorithms/quantum/quantum.pdf"
+  ],
   "unlockCount": 2
 }
 ```
+
+**HTTP Status Codes:**
+
+- `400` Invalid cart payload (missing userId/items or bad item price/pdfKey)
+- `402` Payment verification failed (signature mismatch)
+- `500` Server error while creating/verifying order
 
 ---
 

@@ -11,6 +11,31 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
+// Normalize and validate cart items up front so we can reuse across endpoints.
+const sanitizeItems = (items) =>
+  (items || []).map((item) => ({
+    pdfKey: item?.pdfKey,
+    price: Number(item?.price ?? 0),
+  }));
+
+const validateCartRequest = (userId, items) => {
+  if (!userId || !Array.isArray(items) || items.length === 0) {
+    return "Invalid request: userId and non-empty items array required";
+  }
+
+  const normalized = sanitizeItems(items);
+  for (const item of normalized) {
+    if (!item.pdfKey || typeof item.pdfKey !== "string") {
+      return "Invalid item: pdfKey required for all items";
+    }
+    if (!Number.isFinite(item.price) || item.price <= 0) {
+      return "Invalid item: positive price required for all items";
+    }
+  }
+
+  return null;
+};
+
 /* ---------------- CART CHECKOUT ---------------- */
 /**
  * POST /api/cart/checkout
@@ -38,26 +63,21 @@ router.post("/checkout", async (req, res) => {
   try {
     const { userId, userName, userEmail, items } = req.body;
 
-    // Validation
-    if (!userId || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Invalid request: userId and items array required" 
+    const validationError = validateCartRequest(userId, items);
+    if (validationError) {
+      return res.status(400).json({
+        success: false,
+        error: validationError,
       });
     }
 
-    // Validate each item
-    for (const item of items) {
-      if (!item.pdfKey || typeof item.price !== 'number' || item.price <= 0) {
-        return res.status(400).json({ 
-          success: false, 
-          error: "Invalid item: pdfKey and valid price required for all items" 
-        });
-      }
-    }
+    const normalizedItems = sanitizeItems(items);
 
-    // Calculate total amount from items
-    const totalAmount = items.reduce((sum, item) => sum + item.price, 0);
+    // Calculate total amount from items (cast to Number to match spec)
+    const totalAmount = normalizedItems.reduce(
+      (sum, item) => sum + Number(item.price || 0),
+      0
+    );
 
     // Create Razorpay order using existing logic
     const order = await razorpay.orders.create({
@@ -71,15 +91,22 @@ router.post("/checkout", async (req, res) => {
       }
     });
 
-    console.log(`📦 Cart order created: ${order.id} for ${items.length} items, total ₹${totalAmount}`);
+    console.log(
+      `📦 Cart order created: ${order.id} for ${normalizedItems.length} items, total ₹${totalAmount}`
+    );
+    console.log(
+      `🔍 Cart order details -> user: ${userId}, email: ${userEmail || "-"}, items: ${normalizedItems
+        .map((i) => i.pdfKey)
+        .join(", ")}`
+    );
 
     // Return order details to frontend
     res.json({
       success: true,
       order: order,
       totalAmount: totalAmount,
-      itemCount: items.length,
-      items: items.map(item => item.pdfKey), // Return PDF keys for reference
+      itemCount: normalizedItems.length,
+      items: normalizedItems.map((item) => item.pdfKey), // Return PDF keys for reference
     });
 
   } catch (err) {
@@ -138,12 +165,15 @@ router.post("/verify-payment", async (req, res) => {
       });
     }
 
-    if (!userId || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Invalid request: userId and items array required" 
+    const validationError = validateCartRequest(userId, items);
+    if (validationError) {
+      return res.status(400).json({
+        success: false,
+        error: validationError,
       });
     }
+
+    const normalizedItems = sanitizeItems(items);
 
     // Verify Razorpay signature using existing logic
     const body = razorpay_order_id + "|" + razorpay_payment_id;
@@ -154,13 +184,18 @@ router.post("/verify-payment", async (req, res) => {
 
     if (expectedSignature !== razorpay_signature) {
       console.error("❌ Cart payment signature mismatch");
-      return res.status(400).json({ 
+      return res.status(402).json({ 
         success: false, 
         error: "Payment verification failed" 
       });
     }
 
     console.log(`✅ Cart payment verified: ${razorpay_payment_id}`);
+    console.log(
+      `🔓 Unlocking cart items -> user: ${userId}, items: ${normalizedItems
+        .map((i) => i.pdfKey)
+        .join(", ")}`
+    );
 
     // Save user (reusing existing logic)
     await pool.query(
@@ -171,7 +206,7 @@ router.post("/verify-payment", async (req, res) => {
     );
 
     // Extract PDF paths from items
-    const pathsToUnlock = items.map(item => item.pdfKey);
+    const pathsToUnlock = normalizedItems.map((item) => item.pdfKey);
 
     // Unlock each PDF (reusing existing unlock logic)
     const unlockedPaths = [];
@@ -194,15 +229,16 @@ router.post("/verify-payment", async (req, res) => {
 
     res.json({ 
       success: true,
-      unlockedPaths: unlockedPaths,
+      unlocked: unlockedPaths,
+      unlockedPaths: unlockedPaths, // kept for backward compatibility with docs
       unlockCount: unlockedPaths.length,
     });
 
   } catch (err) {
     console.error("❌ Cart verify payment error:", err);
-    res.status(500).json({ 
-      success: false, 
-      error: "Failed to verify cart payment" 
+    res.status(500).json({
+      success: false,
+      error: "Failed to verify cart payment",
     });
   }
 });

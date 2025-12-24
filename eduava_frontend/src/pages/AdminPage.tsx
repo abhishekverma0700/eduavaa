@@ -36,19 +36,21 @@ const AdminPage = () => {
       try {
         const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/sales`, {
           headers: {
+            "Content-Type": "application/json",
             "x-admin-uid": user.uid, // 🔑 REQUIRED BY BACKEND
           },
         });
 
         if (!res.ok) {
-          throw new Error("Unauthorized or failed request");
+          const bodyText = await res.text();
+          throw new Error(bodyText || `Request failed with ${res.status}`);
         }
 
         const data = await res.json();
         setSales(data.sales || []);
       } catch (err) {
         console.error("Failed to load sales", err);
-        setError("Failed to load admin data");
+        setError("Failed to load admin data. Please retry in a moment.");
       } finally {
         setLoading(false);
       }

@@ -6,6 +6,7 @@ import {
   ReactNode,
 } from "react";
 import { Note } from "@/types";
+import { useAuth } from "./AuthContext";
 
 interface CartItem extends Note {
   category: string;
@@ -32,37 +33,53 @@ const CartContext = createContext<CartContextType>({
 });
 
 const CART_STORAGE_KEY = "eduava_cart";
+const userCartKey = (uid: string) => `cart_user_${uid}`;
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const stored = localStorage.getItem(CART_STORAGE_KEY);
-      if (!stored) return [];
-      const parsed = JSON.parse(stored);
-      // Validate parsed data is an array
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      console.error("Failed to load cart from localStorage:", error);
-      return [];
-    }
-  });
+  const { user } = useAuth();
+  const [cart, setCart] = useState<CartItem[]>([]);
 
-  // Persist cart to localStorage whenever it changes
+  // Load user-scoped cart whenever auth user changes
   useEffect(() => {
     try {
-      // Only save if cart is valid array
-      if (Array.isArray(cart)) {
-        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+      // Remove legacy shared cart key to prevent leakage
+      localStorage.removeItem(CART_STORAGE_KEY);
+
+      if (!user?.uid) {
+        setCart([]);
+        return;
+      }
+
+      const stored = localStorage.getItem(userCartKey(user.uid));
+      if (!stored) {
+        setCart([]);
+        return;
+      }
+
+      const parsed = JSON.parse(stored);
+      setCart(Array.isArray(parsed) ? parsed : []);
+    } catch (error) {
+      console.error("Failed to load user cart from localStorage:", error);
+      setCart([]);
+    }
+  }, [user?.uid]);
+
+  // Persist cart to user-specific localStorage whenever it changes and user is present
+  useEffect(() => {
+    try {
+      if (user?.uid && Array.isArray(cart)) {
+        localStorage.setItem(userCartKey(user.uid), JSON.stringify(cart));
       }
     } catch (error) {
       console.error("Failed to save cart to localStorage:", error);
     }
-  }, [cart]);
+  }, [cart, user?.uid]);
 
   const addToCart = (note: Note, category: string): boolean => {
     try {
       // Safety checks
       if (!note || !note.r2Path || !category) return false;
+      if (!user?.uid) return false; // cart is user-scoped only
       
       // Ensure cart is an array
       const safeCart = Array.isArray(cart) ? cart : [];
@@ -99,6 +116,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const clearCart = () => {
     try {
       setCart([]);
+      if (user?.uid) {
+        localStorage.removeItem(userCartKey(user.uid));
+      }
     } catch (error) {
       console.error("Failed to clear cart:", error);
     }

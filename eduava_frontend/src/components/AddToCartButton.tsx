@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, Check } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 interface AddToCartButtonProps {
   note: Note;
@@ -24,6 +25,7 @@ const AddToCartButton = ({
 
   const { addToCart, isInCart } = useCart();
   const { toast } = useToast();
+  const { user, login } = useAuth();
   
   // Safe cart check with fallback
   const inCart = isInCart ? isInCart(note.r2Path) : false;
@@ -35,6 +37,16 @@ const AddToCartButton = ({
 
   const handleAddToCart = () => {
     try {
+      if (!user) {
+        toast?.({
+          title: "Please login to add items",
+          description: "Sign in to keep your cart synced.",
+          variant: "destructive",
+        });
+        login?.().catch((err) => console.error("Login failed:", err));
+        return;
+      }
+
       if (!addToCart) {
         console.warn("addToCart function not available");
         return;

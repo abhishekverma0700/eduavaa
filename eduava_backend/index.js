@@ -16,7 +16,8 @@ console.log("✅ Backend file loaded");
 
 /* ---------------- ADMIN UID ---------------- */
 const ADMIN_UIDS = [
-  "ywgsU3BOAnONQSCg05rk0dL4Ajv2"
+  "ywgsU3BOAnONQSCg05rk0dL4Ajv2", // legacy admin
+  "ixvHHm1c9Qh3ZrrCn8j20tl4DYb2", // web admin (frontend const)
 ];
 
 /* ---------------- RAZORPAY ---------------- */
@@ -128,22 +129,29 @@ app.get("/user-unlocks/:userId", async (req, res) => {
 app.get("/admin/sales", async (req, res) => {
   const adminUid = req.headers["x-admin-uid"];
   if (!ADMIN_UIDS.includes(adminUid)) {
+    console.warn("🚫 Admin access denied", { adminUid });
     return res.status(403).json({ error: "Forbidden" });
   }
 
-  const result = await pool.query(`
-    SELECT 
-      u.name,
-      u.email,
-      un.note_path,
-      un.payment_id,
-      un.created_at
-    FROM unlocks un
-    JOIN users u ON u.id = un.user_id
-    ORDER BY un.created_at DESC
-  `);
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.name,
+        u.email,
+        un.note_path,
+        un.payment_id,
+        un.created_at
+      FROM unlocks un
+      JOIN users u ON u.id = un.user_id
+      ORDER BY un.created_at DESC
+    `);
 
-  res.json({ sales: result.rows });
+    console.log("📊 Admin sales fetched", { count: result.rowCount });
+    res.json({ sales: result.rows });
+  } catch (err) {
+    console.error("❌ Admin sales fetch failed", err);
+    res.status(500).json({ error: "Failed to fetch admin data" });
+  }
 });
 
 /* ---------------- START SERVER ---------------- */

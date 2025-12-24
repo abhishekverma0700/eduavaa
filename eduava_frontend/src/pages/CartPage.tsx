@@ -8,13 +8,49 @@ import { Helmet } from "react-helmet-async";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 const CartPage = () => {
   const { cart, removeFromCart, clearCart, cartTotal, cartCount } = useCart();
+  const { user, login } = useAuth();
   const [processingPayment, setProcessingPayment] = useState(false);
   
   // Ensure cart is always an array
   const safeCart = Array.isArray(cart) ? cart : [];
+
+  if (!user) {
+    return (
+      <Layout>
+        <Helmet>
+          <title>{String("Shopping Cart - Eduava")}</title>
+        </Helmet>
+        <div className="min-h-[calc(100vh-200px)] flex items-center justify-center">
+          <div className="container max-w-2xl text-center space-y-6">
+            <div className="flex justify-center mb-4">
+              <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-secondary/50">
+                <ShoppingCart className="h-12 w-12 text-muted-foreground" />
+              </div>
+            </div>
+            <h1 className="text-4xl font-serif font-bold">Login to view your cart</h1>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Your cart is linked to your account. Please sign in to add items or resume a saved cart.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button size="lg" onClick={() => login?.()} className="gap-2">
+                Continue with Google
+              </Button>
+              <Button variant="outline" asChild size="lg" className="gap-2">
+                <Link to="/">
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to notes
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!cartCount || cartCount === 0 || safeCart.length === 0) {
     return (

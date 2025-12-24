@@ -60,6 +60,7 @@ export const startPayment = async ({
       name: "Eduava",
       description: note.label,
       order_id: order.id,
+      redirect: false, // keep checkout in the same modal on mobile
 
       handler: async (response: any) => {
         try {
