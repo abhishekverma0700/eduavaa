@@ -121,6 +121,13 @@ const SubjectPage = () => {
   const renderNoteCard = (note: Note, index: number) => {
     const isUnlocked = unlocked.includes(note.r2Path);
     const isPaying = payingNote === note.r2Path;
+    
+    // Determine category based on note type
+    const category = note.type === "quantum" 
+      ? "Quantum" 
+      : note.type === "all" 
+      ? "All Unit Notes" 
+      : "Unit Notes";
 
     return (
       <div key={note.r2Path} className="space-y-3">
@@ -131,6 +138,7 @@ const SubjectPage = () => {
           onPay={handlePay}
           isUnlocked={isUnlocked}
           paying={isPaying}
+          category={category}
         />
 
         {loadingUnlocks ? (
@@ -151,9 +159,9 @@ const SubjectPage = () => {
 
   return (
     <Layout
-      title={`${subjectName} Notes AKTU | Eduava`}
-      description={`Download genuine ${subjectName} notes for AKTU.`}
-      keywords={`${subjectName} notes AKTU, ${subjectName} PDF`}
+      title={String(`${subjectName || 'Subject'} AKTU Notes & Quantum PDFs | Eduavaa`)}
+      description={String(`Download ${subjectName || 'subject'} AKTU notes, quantum PDFs, and question papers for APJ Abdul Kalam Technical University. Unit-wise PDFs with previews and instant unlocks.`)}
+      keywords={String(`${subjectName || 'subject'} AKTU notes, AKTU quantum, AKTU question papers, APJ Abdul Kalam Technical University notes, AKTU unit wise notes, AKTU engineering notes PDF`)}
     >
       {/* Header */}
       <section className="bg-secondary/30 py-12">
@@ -170,8 +178,11 @@ const SubjectPage = () => {
             <div>
               <Badge className="mb-2">{branch.name}</Badge>
               <h1 className="text-3xl font-serif font-bold">
-                {subjectName}
+                {subjectName} AKTU Notes
               </h1>
+              <p className="text-sm text-muted-foreground max-w-2xl mt-2">
+                Unit-wise AKTU engineering notes, quantum PDFs, and question papers for APJ Abdul Kalam Technical University students.
+              </p>
             </div>
 
             <div className="px-4 py-2 bg-card border rounded-xl text-center">
@@ -192,7 +203,7 @@ const SubjectPage = () => {
             <div>
               <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />
-                Complete Notes
+                AKTU Complete Notes (Unit Wise)
               </h2>
               <div className="grid md:grid-cols-2 gap-6">
                 {allNotes.map(renderNoteCard)}
@@ -204,7 +215,7 @@ const SubjectPage = () => {
             <div>
               <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2">
                 <Zap className="h-5 w-5" />
-                Quantum Notes
+                AKTU Quantum PDFs – Unit Wise
               </h2>
               <div className="grid md:grid-cols-2 gap-6">
                 {quantumNotes.map(renderNoteCard)}
@@ -216,7 +227,7 @@ const SubjectPage = () => {
             <div>
               <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Unit Wise Notes
+                AKTU Unit Wise Notes
               </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {unitNotes.map(renderNoteCard)}

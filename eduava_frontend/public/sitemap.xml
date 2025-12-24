@@ -1,9 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://YOUR_DOMAIN/</loc>
+    <loc>https://eduavaa.in/</loc>
   </url>
   <url>
-    <loc>https://YOUR_DOMAIN/cse</loc>
+    <loc>https://eduavaa.in/category/notes</loc>
+  </url>
+  <url>
+    <loc>https://eduavaa.in/category/quantum</loc>
+  </url>
+  <url>
+    <loc>https://eduavaa.in/category/question-papers</loc>
+  </url>
+  <url>
+    <loc>https://eduavaa.in/category/all-units</loc>
   </url>
 </urlset>

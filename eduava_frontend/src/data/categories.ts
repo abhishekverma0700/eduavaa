@@ -1,4 +1,4 @@
-export type CategoryKey = "notes" | "question-papers" | "quantum" | "all-unit-notes";
+export type CategoryKey = "notes" | "question-papers" | "quantum" | "all-units";
 
 export type Category = {
   key: CategoryKey;
@@ -16,7 +16,7 @@ export const CATEGORIES: Record<CategoryKey, Category> = {
     label: "Notes",
     dir: "Notes",
     price: 4.5,
-    suggestions: ["quantum", "all-unit-notes"],
+    suggestions: ["quantum", "all-units"],
   },
   "question-papers": {
     key: "question-papers",
@@ -30,10 +30,10 @@ export const CATEGORIES: Record<CategoryKey, Category> = {
     label: "Quantum",
     dir: "Quantum",
     price: 16.5,
-    suggestions: ["all-unit-notes", "notes"],
+    suggestions: ["all-units", "notes"],
   },
-  "all-unit-notes": {
-    key: "all-unit-notes",
+  "all-units": {
+    key: "all-units",
     label: "All Unit Notes",
     dir: "All-Unit-Notes",
     price: 16.5,

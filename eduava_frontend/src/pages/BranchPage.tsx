@@ -31,9 +31,9 @@ const BranchPage = () => {
 
   return (
     <Layout
-      title={`${branch.name} Notes AKTU | Eduava`}
-      description={`Download genuine ${branch.name} notes for AKTU. Unit wise PDFs, instant access.`}
-      keywords={`${branch.name} notes AKTU, AKTU ${branch.name} PDF`}
+      title={String(`${branch.name || 'Branch'} AKTU Notes & Question Papers | Eduavaa`)}
+      description={String(`Download ${branch.name || 'branch'} AKTU notes, quantum PDFs, and question papers for APJ Abdul Kalam Technical University. Unit-wise PDFs with previews and instant unlocks.`)}
+      keywords={String(`${branch.name || 'branch'} AKTU notes, AKTU unit wise notes, AKTU quantum, AKTU question papers, APJ Abdul Kalam Technical University notes, AKTU engineering notes PDF`)}
     >
       {/* Header */}
       <section className="bg-secondary/30 py-12">
@@ -47,10 +47,10 @@ const BranchPage = () => {
           </Link>
 
           <h1 className="text-3xl md:text-4xl font-serif font-bold">
-            {branch.name}
+            {branch.name} AKTU Notes
           </h1>
-          <p className="text-muted-foreground mt-1">
-            {subjects.length} subjects available
+          <p className="text-muted-foreground mt-1 max-w-2xl">
+            {subjects.length} subjects available • Unit-wise AKTU engineering notes, quantum PDFs, and question papers for APJ Abdul Kalam Technical University.
           </p>
         </div>
       </section>

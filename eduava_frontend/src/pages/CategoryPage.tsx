@@ -2,7 +2,7 @@ import Layout from "@/components/Layout";
 import SearchBar from "@/components/SearchBar";
 import PDFList from "@/components/PDFList";
 import { Badge } from "@/components/ui/badge";
-import { getCategory, allCategories } from "@/data/categories";
+import { getCategory, allCategories, CategoryKey } from "@/data/categories";
 import manifest from "@/data/notes-manifest.json";
 import { useAuth } from "@/context/AuthContext";
 import { Note } from "@/types";
@@ -84,10 +84,52 @@ const filterByQuery = (index: IndexedItem[], query: string) => {
   return index.filter((i) => i.tokens.some((t) => t.includes(q))).map((i) => i.note);
 };
 
+const CATEGORY_SEO: Record<Exclude<CategoryKey, never>, {
+  title: string;
+  description: string;
+  h1: string;
+  intro: string;
+}> = {
+  notes: {
+    title: "AKTU Notes PDF for All Branches | Eduavaa",
+    description: "Download AKTU notes PDF for every branch of APJ Abdul Kalam Technical University. Unit-wise engineering notes with previews and secure payments.",
+    h1: "AKTU Notes for All Branches",
+    intro: "Browse AKTU engineering notes PDF organized unit wise. Preview before buying and download instantly after secure checkout.",
+  },
+  quantum: {
+    title: "AKTU Quantum PDFs – Unit Wise Notes | Eduavaa",
+    description: "Get AKTU quantum PDFs and unit-wise notes with solved answers. Ideal for quick revision across APJ Abdul Kalam Technical University branches.",
+    h1: "AKTU Quantum PDFs – Unit Wise",
+    intro: "Access AKTU quantum material with concise answers for every unit. Perfect for rapid revision and last-minute prep.",
+  },
+  "question-papers": {
+    title: "AKTU Question Papers with Solutions | Eduavaa",
+    description: "Download previous AKTU question papers and solutions. Practice APJ Abdul Kalam Technical University exams with organized PDFs.",
+    h1: "AKTU Question Papers with Solutions",
+    intro: "Solve past AKTU question papers to score higher. PDFs are organized by subject and branch for faster practice.",
+  },
+  "all-unit-notes": {
+    title: "AKTU All Unit Notes PDF | Eduavaa",
+    description: "Unit-wise AKTU notes compiled in one PDF. Comprehensive coverage for APJ Abdul Kalam Technical University subjects.",
+    h1: "AKTU All Unit Notes (Complete PDFs)",
+    intro: "Download combined unit-wise notes for AKTU subjects. Ideal when you need a single PDF with complete coverage.",
+  },
+};
+
 const CategoryPage = () => {
   const { categoryKey } = useParams();
   const category = getCategory(categoryKey);
   const { user } = useAuth();
+
+  const defaultSeo = {
+    title: "AKTU Study Materials | Eduavaa",
+    description: "Download AKTU study materials including notes, quantum PDFs, and question papers.",
+    h1: "AKTU Study Materials",
+    intro: "Browse curated PDFs for AKTU students across branches.",
+  };
+
+  const currentSeo = category ? CATEGORY_SEO[category.key as CategoryKey] || defaultSeo : defaultSeo;
+  const sharedKeywords = "AKTU notes, AKTU quantum, AKTU question papers, APJ Abdul Kalam Technical University notes, AKTU unit wise notes, AKTU engineering notes PDF";
 
   const [query, setQuery] = useState("");
   const [unlocked, setUnlocked] = useState<string[]>([]);
@@ -194,14 +236,14 @@ const CategoryPage = () => {
     );
   }
 
-  const seoDescription = `Download genuine ${category.label} PDFs for AKTU. Price ₹${category.price} per file. Preview before purchase, pay securely, download instantly.`;
-  const seoKeywords = `${category.label} AKTU, ${category.label} PDF download, ${category.label} notes, AKTU study material, ${category.key}`;
+  const seoDescription = `${currentSeo.description} Price ₹${category.price || 0} per file. Preview before purchase, secure checkout, instant download.`;
+  const seoKeywords = `${sharedKeywords}, ${category.label || 'AKTU'} notes PDF, ${category.label || 'AKTU'} study material, ${category.key || 'aktu'} PDFs`;
 
   return (
     <Layout 
-      title={`${category.label} - AKTU Study Material | Eduava`} 
-      description={seoDescription}
-      keywords={seoKeywords}
+      title={String(currentSeo.title)} 
+      description={String(seoDescription || "Download AKTU study materials")}
+      keywords={String(seoKeywords || sharedKeywords)}
     >
       {/* Header */}
       <section className="bg-secondary/30 py-12">
@@ -213,10 +255,13 @@ const CategoryPage = () => {
           </div>
 
           <div className="flex items-center justify-between">
-            <div>
-              <Badge className="mb-2">Category</Badge>
-              <h1 className="text-3xl font-serif font-bold">{category.label}</h1>
-              <p className="text-sm text-muted-foreground mt-2">Price per file: ₹{category.price}</p>
+            <div className="space-y-2">
+              <Badge className="mb-1">AKTU {category.label}</Badge>
+              <h1 className="text-3xl font-serif font-bold">{currentSeo.h1}</h1>
+              <p className="text-sm text-muted-foreground max-w-2xl">
+                {currentSeo.intro} APJ Abdul Kalam Technical University students can preview PDFs, pay securely, and access downloads instantly.
+              </p>
+              <p className="text-xs text-muted-foreground">Price per file: ₹{category.price} • Branch-ready PDFs</p>
             </div>
             <div className="px-4 py-2 bg-card border rounded-xl text-center">
               <p className="text-2xl font-bold">{currentCategoryPaths.length}</p>
@@ -226,18 +271,47 @@ const CategoryPage = () => {
         </div>
       </section>
 
-      {/* Search */}
-      <section className="py-6 border-b">
-        <div className="container">
-          <SearchBar value={query} onChange={setQuery} debounceMs={300} />
-          <p className="text-xs text-muted-foreground mt-2">
-            Tips: Try full subject name (e.g. Compiler Design), short name (CD), or code (KCS-601).
-          </p>
+      {/* SEO Intro */}
+      <section className="py-8 bg-white border-b">
+        <div className="container grid md:grid-cols-2 gap-8 items-start">
+          <div className="space-y-3">
+            <h2 className="text-2xl font-serif font-bold text-slate-900">
+              {category.label} for APJ Abdul Kalam Technical University
+            </h2>
+            <p className="text-slate-600 leading-relaxed">
+              Find {category.label.toLowerCase()} tailored for AKTU branches. Materials are organized unit wise to help you revise faster and cover the syllabus without guesswork.
+            </p>
+            <h3 className="text-lg font-semibold text-slate-900">How to use</h3>
+            <p className="text-slate-600 leading-relaxed">
+              Use the search bar for subject name, code, or short name. Preview the first page, then unlock full PDFs securely. Ideal for AKTU exams, assignments, and quick revision.
+            </p>
+          </div>
+          <div className="space-y-2 bg-secondary/30 border border-slate-100 rounded-xl p-5">
+            <h3 className="text-lg font-semibold text-slate-900">Explore more AKTU resources</h3>
+            <div className="space-y-1 text-sm text-slate-700">
+              <Link to="/category/notes" className="block hover:text-indigo-700">Browse AKTU Notes</Link>
+              <Link to="/category/quantum" className="block hover:text-indigo-700">Download AKTU Quantum PDFs</Link>
+              <Link to="/category/question-papers" className="block hover:text-indigo-700">AKTU Question Papers with solutions</Link>
+              <Link to="/category/all-unit-notes" className="block hover:text-indigo-700">All Unit Notes for AKTU</Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Results */}
-      <section className="py-12">
+      {/* Search (sticky on mobile) */}
+      <section className="py-0 border-b">
+        <div className="container">
+          <div className="sticky top-16 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 py-4">
+            <SearchBar value={query} onChange={setQuery} debounceMs={300} />
+            <p className="text-xs text-muted-foreground mt-2">
+              Tips: Try full subject name (e.g. Compiler Design), short name (CD), or code (KCS-601).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Results (ensure comfortable space for keyboard) */}
+      <section className="py-12 pb-24 min-h-[50svh]">
         <div className="container space-y-8">
           {displayedNotes.length > 0 ? (
             <>
@@ -247,6 +321,7 @@ const CategoryPage = () => {
                 loadingUnlocks={loadingUnlocks}
                 payingNote={payingNote}
                 onPay={handlePay}
+                category={category?.label || categoryKey || "Notes"}
               />
 
               {/* Performance stats */}

@@ -10,9 +10,10 @@ type Props = {
   loadingUnlocks: boolean;
   payingNote: string | null;
   onPay: (note: Note) => void;
+  category?: string; // Added for cart functionality
 };
 
-const PDFList = ({ notes, unlocked, loadingUnlocks, payingNote, onPay }: Props) => {
+const PDFList = ({ notes, unlocked, loadingUnlocks, payingNote, onPay, category }: Props) => {
   const [preview, setPreview] = useState<Note | null>(null);
 
   return (
@@ -33,6 +34,7 @@ const PDFList = ({ notes, unlocked, loadingUnlocks, payingNote, onPay }: Props) 
                 locked={!isUnlocked}
                 downloadHref={downloadHref}
                 paying={isPaying}
+                category={category}
               />
               {loadingUnlocks ? <p className="text-xs text-muted-foreground">Checking access…</p> : null}
             </div>

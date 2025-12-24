@@ -4,6 +4,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import dotenv from "dotenv";
 import pool from "./db.js";
+import cartCheckoutRoutes from "./routes/cartCheckout.js";
 
 dotenv.config();
 
@@ -28,6 +29,9 @@ const razorpay = new Razorpay({
 app.get("/ping", (req, res) => {
   res.json({ status: "ok", time: new Date() });
 });
+
+/* ---------------- CART ROUTES (NEW) ---------------- */
+app.use("/api/cart", cartCheckoutRoutes);
 
 /* ---------------- CREATE ORDER ---------------- */
 app.post("/create-order", async (req, res) => {
