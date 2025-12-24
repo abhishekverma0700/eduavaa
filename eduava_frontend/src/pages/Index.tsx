@@ -1,5 +1,7 @@
 import Layout from "@/components/Layout";
 import BranchCard from "@/components/BranchCard";
+import CategoryCard from "@/components/CategoryCard";
+import { allCategories } from "@/data/categories";
 import { branches } from "@/data/branches";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, BookOpen, Shield, Download, CheckCircle, ArrowDown } from "lucide-react";
@@ -64,6 +66,25 @@ const Index = () => {
             <a href="#branches" className="text-muted-foreground hover:text-accent transition-colors">
               <ArrowDown className="h-6 w-6" />
             </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Categories Section */}
+      <section id="categories" className="py-16 bg-secondary/20">
+        <div className="container">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-foreground mb-3">
+              Browse by Category
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Explore PDFs grouped by type. Prices are per file and shown on each category.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {allCategories().map((c, i) => (
+              <CategoryCard key={c.key} category={c} index={i} />
+            ))}
           </div>
         </div>
       </section>

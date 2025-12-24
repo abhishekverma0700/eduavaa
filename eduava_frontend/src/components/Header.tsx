@@ -39,6 +39,12 @@ const Header = () => {
             Home
           </Link>
           <Link
+            to="/#categories"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Categories
+          </Link>
+          <Link
             to="/#branches"
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -95,6 +101,13 @@ const Header = () => {
               onClick={() => setIsMenuOpen(false)}
             >
               Home
+            </Link>
+            <Link
+              to="/#categories"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Categories
             </Link>
             <Link
               to="/#branches"

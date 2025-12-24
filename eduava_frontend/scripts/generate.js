@@ -31,19 +31,45 @@ const s3 = new S3Client({
   },
 });
 
+// Map manifest keys (lowercase, consistent) to actual R2 folder prefixes (case-sensitive)
+const CATEGORIES = [
+  { key: "notes", prefix: "Notes" },
+  { key: "question-papers", prefix: "Question-Papers" },
+  { key: "quantum", prefix: "Quantum" },
+  { key: "all-units", prefix: "All-Unit-Notes" },
+];
+
 async function run() {
   console.log("🔄 Reading files from R2 bucket...");
 
-  const response = await s3.send(
-    new ListObjectsV2Command({ Bucket: R2_BUCKET_NAME })
-  );
+  const manifest = {
+    notes: [],
+    "question-papers": [],
+    quantum: [],
+    "all-units": [],
+  };
 
-  const manifest = {};
+  let totalPDFs = 0;
 
-  for (const item of response.Contents || []) {
-    if (item.Key.endsWith(".pdf")) {
-      manifest[item.Key] = true;
-    }
+  // Scan each category folder
+  for (const { key, prefix } of CATEGORIES) {
+    console.log(`📂 Scanning ${prefix}/...`);
+
+    const response = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: R2_BUCKET_NAME,
+        Prefix: `${prefix}/`, // case-sensitive prefix
+      })
+    );
+
+    const pdfs = (response.Contents || [])
+      .map((item) => item.Key)
+      .filter((key) => /\.pdf$/i.test(key) && key !== `${prefix}/`); // case-insensitive .pdf
+
+    manifest[key] = pdfs;
+    totalPDFs += pdfs.length;
+
+    console.log(`   ✓ Found ${pdfs.length} PDFs`);
   }
 
   fs.writeFileSync(
@@ -51,8 +77,12 @@ async function run() {
     JSON.stringify(manifest, null, 2)
   );
 
-  console.log("✅ DONE: notes-manifest.json generated");
-  console.log(`📄 Total PDFs: ${Object.keys(manifest).length}`);
+  console.log("\n✅ DONE: notes-manifest.json generated");
+  console.log(`📄 Total PDFs: ${totalPDFs}`);
+  console.log(`📊 Breakdown:`);
+  for (const [cat, files] of Object.entries(manifest)) {
+    console.log(`   ${cat}: ${files.length}`);
+  }
 }
 
 run().catch(console.error);

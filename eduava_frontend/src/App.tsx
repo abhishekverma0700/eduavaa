@@ -9,6 +9,7 @@ import BranchPage from "./pages/BranchPage";
 import SubjectPage from "./pages/SubjectPage";
 import NotFound from "./pages/NotFound";
 import AdminPage from "@/pages/AdminPage";
+import CategoryPage from "@/pages/CategoryPage";
 
 
 
@@ -23,6 +24,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/category/:categoryKey" element={<CategoryPage />} />
             <Route path="/:branchSlug" element={<BranchPage />} />
             <Route path="/:branchSlug/:subjectSlug" element={<SubjectPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

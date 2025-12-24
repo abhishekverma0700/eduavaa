@@ -8,7 +8,12 @@ interface NoteCardProps {
   index: number;
   onPreview: (note: Note) => void;
   onPay: (note: Note) => void;
-  isUnlocked: boolean;
+  // Legacy prop from SubjectPage – if provided, will be used to derive lock state
+  isUnlocked?: boolean;
+  // Preferred explicit lock state at item level
+  locked?: boolean;
+  // Optional direct download link when unlocked; keeps monetization at item-level
+  downloadHref?: string;
   paying?: boolean;
 }
 
@@ -18,8 +23,11 @@ const NoteCard = ({
   onPreview,
   onPay,
   isUnlocked,
+  locked,
+  downloadHref,
   paying = false,
 }: NoteCardProps) => {
+  const isLocked = typeof locked === "boolean" ? locked : !(isUnlocked ?? false);
   return (
     <div
       className="group relative p-5 bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 animate-slide-up"
@@ -52,12 +60,8 @@ const NoteCard = ({
               Preview
             </Button>
 
-            {/* Payment / Status */}
-            {isUnlocked ? (
-              <Badge className="bg-green-100 text-green-700 border-green-200">
-                Unlocked
-              </Badge>
-            ) : (
+            {/* Monetization strictly at item level */}
+            {isLocked ? (
               <Button
                 size="sm"
                 onClick={() => onPay(note)}
@@ -76,6 +80,19 @@ const NoteCard = ({
                   </>
                 )}
               </Button>
+            ) : downloadHref ? (
+              <a
+                href={downloadHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm"
+              >
+                🔓 Read / Download
+              </a>
+            ) : (
+              <Badge className="bg-green-100 text-green-700 border-green-200">
+                Unlocked
+              </Badge>
             )}
           </div>
         </div>

@@ -48,7 +48,7 @@ app.post("/create-order", async (req, res) => {
   }
 });
 
-/* ---------------- VERIFY + UNLOCK ---------------- */
+/* ---------------- VERIFY + UNLOCK (BULK SUPPORT) ---------------- */
 app.post("/verify-payment", async (req, res) => {
   try {
     const {
@@ -57,6 +57,7 @@ app.post("/verify-payment", async (req, res) => {
       razorpay_signature,
       userId,
       notePath,
+      notePaths,
       userName,
       userEmail,
     } = req.body;
@@ -69,6 +70,7 @@ app.post("/verify-payment", async (req, res) => {
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
+      console.error("❌ Signature mismatch");
       return res.status(400).json({ success: false });
     }
 
@@ -80,14 +82,25 @@ app.post("/verify-payment", async (req, res) => {
       [userId, userName || "Student", userEmail || ""]
     );
 
-    /* SAVE UNLOCK */
-    await pool.query(
-      `INSERT INTO unlocks (user_id, note_path, payment_id)
-       VALUES ($1,$2,$3)
-       ON CONFLICT (user_id, note_path) DO NOTHING`,
-      [userId, notePath, razorpay_payment_id]
-    );
+    /* DETERMINE PATHS TO UNLOCK */
+    const pathsToUnlock = notePaths && Array.isArray(notePaths) ? notePaths : (notePath ? [notePath] : []);
 
+    if (pathsToUnlock.length === 0) {
+      console.error("❌ No paths to unlock");
+      return res.status(400).json({ success: false });
+    }
+
+    /* SAVE UNLOCKS (BULK) */
+    for (const path of pathsToUnlock) {
+      await pool.query(
+        `INSERT INTO unlocks (user_id, note_path, payment_id)
+         VALUES ($1,$2,$3)
+         ON CONFLICT (user_id, note_path) DO NOTHING`,
+        [userId, path, razorpay_payment_id]
+      );
+    }
+
+    console.log(`✅ Unlocked ${pathsToUnlock.length} PDFs for user ${userId}`);
     res.json({ success: true });
   } catch (err) {
     console.error("Verify error:", err);
