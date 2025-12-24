@@ -31,6 +31,7 @@ const NoteCard = ({
   category = "Notes", // Default category
 }: NoteCardProps) => {
   const isLocked = typeof locked === "boolean" ? locked : !(isUnlocked ?? false);
+  
   return (
     <div
       className="group relative p-5 bg-card border border-slate-100 rounded-lg shadow-sm hover:shadow-lg hover:border-indigo-200 hover:-translate-y-1 transition-all duration-300 animate-slide-up overflow-hidden"

@@ -1,8 +1,10 @@
 import NoteCard from "@/components/NoteCard";
-import PDFPreview from "@/components/PDFPreview";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Note } from "@/types";
 import { R2_BASE_URL } from "@/config/r2";
+
+// Lazy load PDFPreview to reduce initial bundle size
+const PDFPreview = lazy(() => import("@/components/PDFPreview"));
 
 type Props = {
   notes: Note[];
@@ -43,7 +45,9 @@ const PDFList = ({ notes, unlocked, loadingUnlocks, payingNote, onPay, category 
       </div>
 
       {preview && (
-        <PDFPreview note={preview} onClose={() => setPreview(null)} />
+        <Suspense fallback={null}>
+          <PDFPreview note={preview} onClose={() => setPreview(null)} />
+        </Suspense>
       )}
     </>
   );

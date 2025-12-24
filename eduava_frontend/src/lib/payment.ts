@@ -9,6 +9,33 @@ interface PaymentOptions {
   onFailure: () => void;
 }
 
+// Track ongoing payments to prevent double clicks
+let isPaymentInProgress = false;
+
+export const isRazorpaySDKLoaded = (): boolean => {
+  return typeof (window as any).Razorpay !== "undefined";
+};
+
+/**
+ * Wait for Razorpay SDK to load (from index.html script tag)
+ * with timeout to prevent hanging
+ */
+const waitForRazorpaySDK = async (timeoutMs: number = 5000): Promise<boolean> => {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    if (isRazorpaySDKLoaded()) {
+      console.log("✅ Razorpay SDK loaded");
+      return true;
+    }
+    // Wait 100ms before checking again
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  console.error("❌ Razorpay SDK timeout");
+  return false;
+};
+
 export const startPayment = async ({
   amount,
   note,
@@ -23,14 +50,24 @@ export const startPayment = async ({
     console.log("note:", note);
     console.log("user:", user.uid);
 
-    // 🔴 STEP 1: Razorpay SDK check
-    if (!(window as any).Razorpay) {
-      console.error("❌ Razorpay SDK not loaded");
-      alert("Razorpay SDK not loaded");
+    // 🔴 STEP 0.5: Prevent double clicks
+    if (isPaymentInProgress) {
+      console.warn("⚠️ Payment already in progress");
+      return;
+    }
+
+    // Mark payment as in progress early
+    isPaymentInProgress = true;
+
+    // 🔴 STEP 1: Wait for Razorpay SDK to load
+    const sdkReady = await waitForRazorpaySDK();
+    if (!sdkReady) {
+      console.error("❌ Razorpay SDK not available");
+      isPaymentInProgress = false;
       onFailure();
       return;
     }
-    console.log("✅ Razorpay SDK found");
+    console.log("✅ Razorpay SDK ready");
 
     // 🔴 STEP 2: Create order (backend)
     console.log("➡️ Calling backend /create-order");
@@ -45,12 +82,16 @@ export const startPayment = async ({
 
     if (!orderRes.ok) {
       console.error("❌ Order create failed");
+      isPaymentInProgress = false;
       onFailure();
       return;
     }
 
     const order = await orderRes.json();
     console.log("✅ Order created:", order);
+
+    // Small delay to ensure order is fully processed
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // 🔴 STEP 3: Razorpay options
     const options = {
@@ -88,13 +129,16 @@ export const startPayment = async ({
 
           if (data.success) {
             console.log("🎉 Payment verified & unlocked");
+            isPaymentInProgress = false;
             onSuccess();
           } else {
             console.error("❌ Verification failed");
+            isPaymentInProgress = false;
             onFailure();
           }
         } catch (err) {
           console.error("❌ Verify exception:", err);
+          isPaymentInProgress = false;
           onFailure();
         }
       },
@@ -102,6 +146,7 @@ export const startPayment = async ({
       modal: {
         ondismiss: () => {
           console.warn("⚠️ Razorpay popup dismissed by user");
+          isPaymentInProgress = false;
           onFailure();
         },
       },
@@ -112,12 +157,30 @@ export const startPayment = async ({
     console.log("🧾 Razorpay options:", options);
 
     // 🔴 STEP 4: Open Razorpay popup
+    // Double-check SDK is still available before creating instance
+    if (!isRazorpaySDKLoaded()) {
+      console.error("❌ Razorpay SDK disappeared");
+      isPaymentInProgress = false;
+      onFailure();
+      return;
+    }
+
     const rzp = new (window as any).Razorpay(options);
+    
+    // Ensure Razorpay instance is ready before opening
+    if (typeof rzp.open !== "function") {
+      console.error("❌ Razorpay instance invalid");
+      isPaymentInProgress = false;
+      onFailure();
+      return;
+    }
+
     rzp.open();
 
     console.log("🟢 Razorpay popup opened");
   } catch (err) {
     console.error("❌ startPayment crashed:", err);
+    isPaymentInProgress = false;
     onFailure();
   }
 };

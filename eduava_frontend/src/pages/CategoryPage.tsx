@@ -2,6 +2,8 @@ import Layout from "@/components/Layout";
 import SearchBar from "@/components/SearchBar";
 import PDFList from "@/components/PDFList";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle } from "lucide-react";
 import { getCategory, allCategories, CategoryKey } from "@/data/categories";
 import manifest from "@/data/notes-manifest.json";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +11,10 @@ import { Note } from "@/types";
 import { startPayment } from "@/lib/payment";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Search, X } from "lucide-react";
+import { fetchWithTimeout, safeArray } from "@/lib/apiUtils";
+import { useToast } from "@/hooks/use-toast";
+import { PDFListSkeleton } from "@/components/SkeletonLoaders";
 
 type ManifestStructure = {
   notes: string[];
@@ -135,6 +141,9 @@ const CategoryPage = () => {
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [loadingUnlocks, setLoadingUnlocks] = useState(false);
   const [payingNote, setPayingNote] = useState<string | null>(null);
+  const [unlocksError, setUnlocksError] = useState(false);
+  const [displayCount, setDisplayCount] = useState(12); // Pagination: start with 12
+  const { toast } = useToast();
 
   const manifestObj = manifest as ManifestStructure;
 
@@ -156,9 +165,17 @@ const CategoryPage = () => {
       // Search active: show all matching results
       return allFilteredNotes;
     }
-    // No search: show only first 15 PDFs
-    return allFilteredNotes.slice(0, 15);
-  }, [allFilteredNotes, query]);
+    // No search: show only first N PDFs (pagination)
+    return allFilteredNotes.slice(0, displayCount);
+  }, [allFilteredNotes, query, displayCount]);
+
+  // Pagination: load more function
+  const handleLoadMore = () => {
+    setDisplayCount(prev => prev + 12);
+  };
+
+  // Check if there are more items to load
+  const hasMore = !query.trim() && allFilteredNotes.length > displayCount;
 
   // Build quick counts for suggestions in other categories
   const otherCategoryMatches = useMemo(() => {
@@ -177,20 +194,36 @@ const CategoryPage = () => {
 
   useEffect(() => {
     if (!user) {
+      // Don't fetch if user is not logged in - saves API call on page load
       setUnlocked([]);
+      setUnlocksError(false);
+      setLoadingUnlocks(false);
       return;
     }
     let cancelled = false;
     const load = async () => {
       try {
         setLoadingUnlocks(true);
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user-unlocks/${user.uid}`);
-        const data = await res.json();
-        if (!cancelled && Array.isArray(data.unlockedNotes)) {
-          setUnlocked(data.unlockedNotes);
+        setUnlocksError(false);
+
+        const data = await fetchWithTimeout(
+          `${import.meta.env.VITE_API_BASE_URL}/user-unlocks/${user.uid}`,
+          {
+            timeout: 8000,
+            retries: 1,
+          }
+        );
+
+        if (!cancelled) {
+          const unlockedNotes = safeArray(data?.unlockedNotes, []);
+          setUnlocked(unlockedNotes);
         }
       } catch (e) {
-        if (!cancelled) setUnlocked([]);
+        console.error("Failed to load unlocked notes:", e);
+        if (!cancelled) {
+          setUnlocksError(true);
+          setUnlocked([]);
+        }
       } finally {
         if (!cancelled) setLoadingUnlocks(false);
       }
@@ -298,22 +331,37 @@ const CategoryPage = () => {
         </div>
       </section>
 
-      {/* Search (sticky on mobile) */}
-      <section className="py-0 border-b">
-        <div className="container">
-          <div className="sticky top-16 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 py-4">
-            <SearchBar value={query} onChange={setQuery} debounceMs={300} />
-            <p className="text-xs text-muted-foreground mt-2">
-              Tips: Try full subject name (e.g. Compiler Design), short name (CD), or code (KCS-601).
-            </p>
-          </div>
+      {/* Prominent Search Section - Positioned at Top */}
+      <section className="py-8 bg-gradient-to-b from-slate-50 to-white border-b">
+        <div className="container max-w-4xl">
+          <SearchBar 
+            value={query} 
+            onChange={setQuery} 
+            placeholder={`Search ${category.label.toLowerCase()}…`}
+            debounceMs={300} 
+          />
         </div>
       </section>
 
       {/* Results (ensure comfortable space for keyboard) */}
       <section className="py-12 pb-24 min-h-[50svh]">
         <div className="container space-y-8">
-          {displayedNotes.length > 0 ? (
+          {/* Error state for failed unlocks fetch */}
+          {unlocksError && (
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded flex gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-900">Unable to load access status</p>
+                <p className="text-sm text-amber-800">
+                  Some PDFs may appear locked. Refresh the page if the issue persists.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {loadingUnlocks ? (
+            <PDFListSkeleton count={5} />
+          ) : displayedNotes.length > 0 ? (
             <>
               <PDFList
                 notes={displayedNotes}
@@ -340,33 +388,93 @@ const CategoryPage = () => {
                     </>
                   )}
                 </p>
+
+                {/* Load More Button */}
+                {hasMore && (
+                  <div className="mt-6">
+                    <Button
+                      variant="outline"
+                      onClick={handleLoadMore}
+                      className="gap-2"
+                    >
+                      Load More PDFs
+                    </Button>
+                  </div>
+                )}
               </div>
             </>
           ) : (
-            <div className="text-center py-16 border rounded-xl bg-secondary/20">
-              <h3 className="font-serif font-bold text-xl mb-2">No matches here</h3>
-              <p className="text-muted-foreground mb-6">
-                {category.suggestions?.length ? "Not found here. Try these categories:" : "Try a different query."}
-              </p>
-              <div className="flex items-center justify-center gap-3 flex-wrap">
-                {category.suggestions?.map((k) => (
-                  <Link key={k} to={`/category/${k}`} className="px-4 py-2 rounded border bg-card hover:bg-secondary transition-colors">
-                    {getCategory(k)?.label}
-                  </Link>
-                ))}
-              </div>
-              {otherCategoryMatches.length > 0 && (
-                <div className="mt-6">
-                  <p className="text-sm text-muted-foreground mb-3">We found partial matches in:</p>
-                  <div className="flex items-center justify-center gap-2 flex-wrap">
-                    {otherCategoryMatches.map((m) => (
-                      <Link key={m.key} to={`/category/${m.key}`} className="text-sm underline">
-                        {m.label} ({m.count})
-                      </Link>
-                    ))}
-                  </div>
+            <div className="max-w-2xl mx-auto">
+              <div className="text-center py-16 px-6 rounded-2xl bg-gradient-to-br from-slate-50 to-indigo-50/30 border-2 border-dashed border-slate-200">
+                {/* Icon */}
+                <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-slate-100 mb-6">
+                  <Search className="h-10 w-10 text-slate-400" />
                 </div>
-              )}
+
+                {/* Message */}
+                <h3 className="font-serif font-bold text-2xl text-slate-900 mb-3">
+                  {query.trim() ? "No results found" : "Start searching"}
+                </h3>
+                <p className="text-slate-600 text-lg mb-6">
+                  {query.trim() 
+                    ? `We couldn't find any matches for "${query}". Try a different keyword or check your spelling.`
+                    : "Use the search bar above to find notes, units, or subjects."
+                  }
+                </p>
+
+                {/* Suggestions */}
+                {query.trim() && (
+                  <div className="space-y-4">
+                    <p className="text-sm font-semibold text-slate-700">Try these suggestions:</p>
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setQuery("")}
+                        className="gap-2"
+                      >
+                        <X className="h-4 w-4" />
+                        Clear search
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cross-category matches */}
+                {category.suggestions?.length > 0 && query.trim() && (
+                  <div className="mt-8 pt-6 border-t border-slate-200">
+                    <p className="text-sm text-slate-600 mb-4">Try searching in these categories:</p>
+                    <div className="flex items-center justify-center gap-3 flex-wrap">
+                      {category.suggestions?.map((k) => (
+                        <Link 
+                          key={k} 
+                          to={`/category/${k}`} 
+                          className="px-4 py-2 rounded-lg border-2 border-indigo-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 transition-all font-medium text-slate-700 hover:text-indigo-700"
+                        >
+                          {getCategory(k)?.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {otherCategoryMatches.length > 0 && query.trim() && (
+                  <div className="mt-6">
+                    <p className="text-sm text-slate-600 mb-3">We found {otherCategoryMatches.reduce((sum, m) => sum + m.count, 0)} matches in other categories:</p>
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                      {otherCategoryMatches.map((m) => (
+                        <Link 
+                          key={m.key} 
+                          to={`/category/${m.key}`} 
+                          className="text-sm px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors font-medium"
+                        >
+                          {m.label} ({m.count})
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

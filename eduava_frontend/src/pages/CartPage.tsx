@@ -9,11 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { CartComingSoonModal } from "@/components/CartComingSoonModal";
 
 const CartPage = () => {
   const { cart, removeFromCart, clearCart, cartTotal, cartCount } = useCart();
   const { user, login } = useAuth();
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [showComingSoonModal, setShowComingSoonModal] = useState(false);
   
   // Ensure cart is always an array
   const safeCart = Array.isArray(cart) ? cart : [];
@@ -227,12 +229,12 @@ const CartPage = () => {
                 <div className="space-y-2 pt-2">
                   <Button 
                     size="lg" 
-                    className="w-full gap-2 h-12 text-base"
-                    disabled={processingPayment}
-                    onClick={() => setProcessingPayment(true)}
+                    className="w-full gap-2 h-12 text-base opacity-50 cursor-not-allowed"
+                    disabled={true}
+                    onClick={() => setShowComingSoonModal(true)}
                   >
                     <ShoppingCart className="h-5 w-5" />
-                    {processingPayment ? "Processing..." : "Proceed to Pay"}
+                    Pay Now (Coming Soon)
                   </Button>
                   <Button 
                     variant="outline" 
@@ -298,16 +300,22 @@ const CartPage = () => {
             </div>
             <Button 
               size="lg" 
-              className="gap-2 h-12 px-6"
-              disabled={processingPayment}
-              onClick={() => setProcessingPayment(true)}
+              className="gap-2 h-12 px-6 opacity-50 cursor-not-allowed"
+              disabled={true}
+              onClick={() => setShowComingSoonModal(true)}
             >
               <ShoppingCart className="h-5 w-5" />
-              <span className="hidden sm:inline">Pay Now</span>
+              <span className="hidden sm:inline">Pay Now (Coming Soon)</span>
               <span className="sm:hidden">Pay</span>
             </Button>
           </div>
         </div>
+
+        {/* Coming Soon Modal */}
+        <CartComingSoonModal 
+          isOpen={showComingSoonModal}
+          onClose={() => setShowComingSoonModal(false)}
+        />
       </div>
     </Layout>
   );

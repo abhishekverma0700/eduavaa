@@ -1,17 +1,22 @@
 import { useParams, Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import Layout from "@/components/Layout";
 import NoteCard from "@/components/NoteCard";
-import PDFPreview from "@/components/PDFPreview";
 import { getBranchBySlug } from "@/data/branches";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, FileText, Zap, BookOpen } from "lucide-react";
+import { ChevronLeft, FileText, Zap, BookOpen, AlertCircle } from "lucide-react";
 import { getNotesForSubject } from "@/lib/notes";
 import { R2_BASE_URL } from "@/config/r2";
 import { Note } from "@/types";
 import { startPayment } from "@/lib/payment";
 import { useAuth } from "@/context/AuthContext";
+import { fetchWithTimeout, safeArray } from "@/lib/apiUtils";
+import { useToast } from "@/hooks/use-toast";
+import { PDFListSkeleton } from "@/components/SkeletonLoaders";
+
+// Lazy load PDFPreview to reduce initial bundle size
+const PDFPreview = lazy(() => import("@/components/PDFPreview"));
 
 const NOTE_PRICE = 4.5;
 
@@ -22,37 +27,49 @@ const SubjectPage = () => {
   }>();
 
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const [previewNote, setPreviewNote] = useState<Note | null>(null);
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [loadingUnlocks, setLoadingUnlocks] = useState(false);
   const [payingNote, setPayingNote] = useState<string | null>(null);
+  const [unlocksError, setUnlocksError] = useState(false);
 
   if (!branchSlug || !subjectSlug) return null;
 
   const branch = getBranchBySlug(branchSlug);
   const notes = getNotesForSubject(branchSlug, subjectSlug);
 
-  /* ---------------- LOAD UNLOCKED NOTES (DB) ---------------- */
+  /* ---------------- LOAD UNLOCKED NOTES (DB) WITH RETRY & ERROR HANDLING ---------------- */
   useEffect(() => {
     if (!user) {
+      // Don't fetch if user is not logged in - saves API call on page load
       setUnlocked([]);
+      setUnlocksError(false);
+      setLoadingUnlocks(false);
       return;
     }
 
     const fetchUnlocks = async () => {
       try {
         setLoadingUnlocks(true);
-        const res = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/user-unlocks/${user.uid}`
-        );
-        const data = await res.json();
+        setUnlocksError(false);
 
-        if (Array.isArray(data.unlockedNotes)) {
-          setUnlocked(data.unlockedNotes);
-        }
+        const data = await fetchWithTimeout(
+          `${import.meta.env.VITE_API_BASE_URL}/user-unlocks/${user.uid}`,
+          {
+            timeout: 8000,
+            retries: 1, // One retry on network failure
+          }
+        );
+
+        // Defensive: ensure data.unlockedNotes is an array
+        const unlockedNotes = safeArray(data?.unlockedNotes, []);
+        setUnlocked(unlockedNotes);
       } catch (err) {
-        console.error("Failed to load unlocks", err);
+        console.error("Failed to load unlocked notes:", err);
+        setUnlocksError(true);
+        // Keep page functional with empty unlocks
         setUnlocked([]);
       } finally {
         setLoadingUnlocks(false);
@@ -198,6 +215,18 @@ const SubjectPage = () => {
       {/* Notes */}
       <section className="py-12">
         <div className="container space-y-12">
+          {/* Error state for failed unlocks fetch */}
+          {unlocksError && (
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded flex gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-900">Unable to load access status</p>
+                <p className="text-sm text-amber-800">
+                  Some notes may appear locked. Refresh the page if the issue persists.
+                </p>
+              </div>
+            </div>
+          )}
 
           {allNotes.length > 0 && (
             <div>
@@ -205,9 +234,15 @@ const SubjectPage = () => {
                 <BookOpen className="h-5 w-5" />
                 AKTU Complete Notes (Unit Wise)
               </h2>
-              <div className="grid md:grid-cols-2 gap-6">
-                {allNotes.map(renderNoteCard)}
-              </div>
+              {loadingUnlocks ? (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <PDFListSkeleton count={2} />
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-6">
+                  {allNotes.map(renderNoteCard)}
+                </div>
+              )}
             </div>
           )}
 
@@ -217,9 +252,15 @@ const SubjectPage = () => {
                 <Zap className="h-5 w-5" />
                 AKTU Quantum PDFs – Unit Wise
               </h2>
-              <div className="grid md:grid-cols-2 gap-6">
-                {quantumNotes.map(renderNoteCard)}
-              </div>
+              {loadingUnlocks ? (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <PDFListSkeleton count={2} />
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-6">
+                  {quantumNotes.map(renderNoteCard)}
+                </div>
+              )}
             </div>
           )}
 
@@ -238,10 +279,12 @@ const SubjectPage = () => {
       </section>
 
       {previewNote && (
-        <PDFPreview
-          note={previewNote}
-          onClose={() => setPreviewNote(null)}
-        />
+        <Suspense fallback={null}>
+          <PDFPreview
+            note={previewNote}
+            onClose={() => setPreviewNote(null)}
+          />
+        </Suspense>
       )}
     </Layout>
   );
